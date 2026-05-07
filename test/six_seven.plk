@@ -1,0 +1,11 @@
+import std::constructor::return_runtime;
+
+init {
+    return_runtime();
+}
+
+run {
+    let buf = @malloc_uninit(32);
+    @mstore32(buf, 67);
+    @evm_return(buf, 32);
+}
