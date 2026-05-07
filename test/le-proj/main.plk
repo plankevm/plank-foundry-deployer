@@ -1,0 +1,12 @@
+import std::constructor::return_runtime;
+import le_proj::truth::LIFE;
+
+init {
+    return_runtime();
+}
+
+run {
+    let buf = @malloc_uninit(32);
+    @mstore32(buf, LIFE);
+    @evm_return(buf, 32);
+}

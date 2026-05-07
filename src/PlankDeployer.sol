@@ -22,6 +22,7 @@ using BuildOptionsLib for BuildOptions global;
 library BuildOptionsLib {
     function disableOptimizations(BuildOptions memory self) internal pure returns (BuildOptions memory) {
         self.optimize = false;
+        return self;
     }
 
     function withModuleRoot(BuildOptions memory self, string memory moduleRoot)
@@ -55,6 +56,7 @@ library BuildOptionsLib {
             dependencies[i] = self.dependencies[i];
         }
         dependencies[self.dependencies.length] = Dependency({name: name, path: path});
+        self.dependencies = dependencies;
         return self;
     }
 }
@@ -72,7 +74,7 @@ abstract contract PlankDeployer {
         return vmFFI(args);
     }
 
-    function emptyBuildOptions() internal pure returns (BuildOptions memory opt) {
+    function initBuildOptions() internal pure returns (BuildOptions memory opt) {
         opt.optimize = true;
         opt.moduleRootSet = false;
         opt.moduleNameSet = false;
@@ -80,7 +82,7 @@ abstract contract PlankDeployer {
     }
 
     function plankBuildFFI(string memory root, BuildOptions memory opt) internal returns (bytes memory) {
-        uint256 totalArgs = 5;
+        uint256 totalArgs = 3;
         if (opt.optimize) totalArgs += 2;
         if (opt.moduleRootSet) totalArgs += 2;
         if (opt.moduleNameSet) totalArgs += 2;
