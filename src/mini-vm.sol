@@ -27,6 +27,7 @@ function vmFFI(string[] memory args) returns (bytes memory res) {
     assembly ("memory-safe") {
         res := mload(0x40)
         returndatacopy(res, 0x20, sub(returndatasize(), 0x20))
+        mstore(0x40, add(res, sub(returndatasize(), 0x20)))
     }
 }
 
