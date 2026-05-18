@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {vmFFI} from "./mini-vm.sol";
+import {PushableStrings, vmFFI} from "./mini-vm.sol";
 
 struct Dependency {
     string name;
@@ -9,19 +9,43 @@ struct Dependency {
 }
 
 struct BuildOptions {
-    bool optimize;
+    bool optimizationsEnabled;
+    string optimizations;
     string moduleRoot;
     bool moduleRootSet;
     string moduleName;
     bool moduleNameSet;
+    Backend backend;
     Dependency[] dependencies;
+}
+
+enum Backend {
+    Debug,
+    Release,
+    Sonatina
 }
 
 using BuildOptionsLib for BuildOptions global;
 
 library BuildOptionsLib {
     function disableOptimizations(BuildOptions memory self) internal pure returns (BuildOptions memory) {
-        self.optimize = false;
+        self.optimizationsEnabled = false;
+        self.optimizations = "";
+        return self;
+    }
+
+    function withOptimizations(BuildOptions memory self, string memory optimizations)
+        internal
+        pure
+        returns (BuildOptions memory)
+    {
+        self.optimizationsEnabled = true;
+        self.optimizations = optimizations;
+        return self;
+    }
+
+    function withBackend(BuildOptions memory self, Backend backend) internal pure returns (BuildOptions memory) {
+        self.backend = backend;
         return self;
     }
 
@@ -75,43 +99,48 @@ abstract contract PlankDeployer {
     }
 
     function initBuildOptions() internal pure returns (BuildOptions memory opt) {
-        opt.optimize = true;
+        opt.optimizationsEnabled = true;
+        opt.optimizations = "csud";
         opt.moduleRootSet = false;
         opt.moduleNameSet = false;
+        opt.backend = Backend.Debug;
         opt.dependencies = new Dependency[](0);
     }
 
     function plankBuildFFI(string memory root, BuildOptions memory opt) internal returns (bytes memory) {
-        uint256 totalArgs = 3;
-        if (opt.optimize) totalArgs += 2;
-        if (opt.moduleRootSet) totalArgs += 2;
-        if (opt.moduleNameSet) totalArgs += 2;
-        totalArgs += opt.dependencies.length * 2;
-        string[] memory args = new string[](totalArgs);
+        string[] memory bin = new string[](1);
+        bin[0] = "plank";
+        return plankBuildFFI(bin, root, opt);
+    }
 
-        uint256 argIndex = 0;
-        args[argIndex++] = "plank";
-        args[argIndex++] = "build";
-        args[argIndex++] = root;
-        if (opt.optimize) {
-            args[argIndex++] = "-O";
-            args[argIndex++] = "csud";
+    function plankBuildFFI(string[] memory plankBin, string memory root, BuildOptions memory opt)
+        internal
+        returns (bytes memory)
+    {
+        PushableStrings memory args = PushableStrings(plankBin.length, plankBin);
+
+        args.push("build");
+        args.push(root);
+
+        if (opt.optimizationsEnabled) {
+            args.push("-O");
+            args.push(opt.optimizations);
         }
 
         if (opt.moduleRootSet) {
-            args[argIndex++] = "--module-root";
-            args[argIndex++] = opt.moduleRoot;
+            args.push("--module-root");
+            args.push(opt.moduleRoot);
         }
         if (opt.moduleNameSet) {
-            args[argIndex++] = "--module-name";
-            args[argIndex++] = opt.moduleName;
+            args.push("--module-name");
+            args.push(opt.moduleName);
         }
         for (uint256 i = 0; i < opt.dependencies.length; i++) {
-            args[argIndex++] = "--dep";
-            args[argIndex++] = string.concat(opt.dependencies[i].name, "=", opt.dependencies[i].path);
+            args.push("--dep");
+            args.push(string.concat(opt.dependencies[i].name, "=", opt.dependencies[i].path));
         }
 
-        return vmFFI(args);
+        return vmFFI(args.intoArray());
     }
 
     function plankDeployFFI(string memory root, BuildOptions memory opt) internal returns (address) {
