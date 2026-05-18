@@ -15,14 +15,8 @@ struct BuildOptions {
     bool moduleRootSet;
     string moduleName;
     bool moduleNameSet;
-    Backend backend;
+    string backend;
     Dependency[] dependencies;
-}
-
-enum Backend {
-    Debug,
-    Release,
-    Sonatina
 }
 
 using BuildOptionsLib for BuildOptions global;
@@ -44,7 +38,7 @@ library BuildOptionsLib {
         return self;
     }
 
-    function withBackend(BuildOptions memory self, Backend backend) internal pure returns (BuildOptions memory) {
+    function withBackend(BuildOptions memory self, string memory backend) internal pure returns (BuildOptions memory) {
         self.backend = backend;
         return self;
     }
@@ -103,7 +97,7 @@ abstract contract PlankDeployer {
         opt.optimizations = "csud";
         opt.moduleRootSet = false;
         opt.moduleNameSet = false;
-        opt.backend = Backend.Debug;
+        opt.backend = "sir-debug";
         opt.dependencies = new Dependency[](0);
     }
 
@@ -126,6 +120,8 @@ abstract contract PlankDeployer {
             args.push("-O");
             args.push(opt.optimizations);
         }
+        args.push("--backend");
+        args.push(opt.backend);
 
         if (opt.moduleRootSet) {
             args.push("--module-root");
